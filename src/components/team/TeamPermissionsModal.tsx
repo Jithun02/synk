@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useCanvasStore } from '../../store/canvasStore';
 import { UserRole } from '../../types/canvas';
-import { Users, UserPlus, Shield, Check, X, Lock, Eye, MessageSquare, Edit3, Crown } from 'lucide-react';
+import { Users, UserPlus, Shield, Check, X, Lock, Eye, MessageSquare, Edit3, Crown, Mail } from 'lucide-react';
 
 interface TeamPermissionsModalProps {
   onClose: () => void;
@@ -30,7 +30,9 @@ export const TeamPermissionsModal: React.FC<TeamPermissionsModalProps> = ({ onCl
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleInvite = (e: React.FormEvent) => {
+  const [isSendingMail, setIsSendingMail] = useState(false);
+
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     addTeamMember(name.trim(), email.trim(), selectedRole);
@@ -41,9 +43,31 @@ export const TeamPermissionsModal: React.FC<TeamPermissionsModalProps> = ({ onCl
 
     if (navigator.clipboard && link) {
       navigator.clipboard.writeText(link);
-      notify(`✓ Invite link for ${name} copied to clipboard! Share it with them.`);
-    } else {
-      notify(`✓ Invited ${name} as ${selectedRole.toUpperCase()}!`);
+    }
+
+    setIsSendingMail(true);
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          role: selectedRole,
+          joinUrl: link,
+          inviterName: currentUser.name,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.mailtoUrl && typeof window !== 'undefined') {
+        window.open(data.mailtoUrl, '_blank');
+      }
+      notify(`📧 Invitation email prepared for ${email} & join link copied to clipboard!`);
+    } catch (err) {
+      notify(`✓ Invited ${name} & copied join link!`);
+    } finally {
+      setIsSendingMail(false);
     }
 
     setName('');
@@ -140,9 +164,11 @@ export const TeamPermissionsModal: React.FC<TeamPermissionsModalProps> = ({ onCl
               </select>
               <button
                 type="submit"
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-xs transition"
+                disabled={isSendingMail}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center space-x-1 whitespace-nowrap"
               >
-                Invite
+                <Mail size={12} />
+                <span>{isSendingMail ? 'Sending...' : 'Email Invite'}</span>
               </button>
             </div>
           </div>
