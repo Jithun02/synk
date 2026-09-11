@@ -20,7 +20,7 @@ Synk is an enterprise-grade collaborative engineering and cybersecurity architec
   - [3.5 Infrastructure as Code (IaC) & Specification Compiler](#35-infrastructure-as-code-iac--specification-compiler)
   - [3.6 DevOps Toolchain & Enterprise Integrations](#36-devops-toolchain--enterprise-integrations)
   - [3.7 Interactive AI System Architecture Assistant](#37-interactive-ai-system-architecture-assistant)
-  - [3.8 Enterprise Team Governance & Role-Based Access Control (RBAC)](#38-enterprise-team-governance--role-based-access-control-rbac)
+  - [3.8 Enterprise Team Governance, Real-Time Invitations & Role-Based Access Control (RBAC)](#38-enterprise-team-governance-real-time-invitations--role-based-access-control-rbac)
 - [4. Codebase Architecture & File Structure](#4-codebase-architecture--file-structure)
 - [5. Quick Start & Local Setup Guide](#5-quick-start--local-setup-guide)
 - [6. Production Deployment on Vercel](#6-production-deployment-on-vercel)
@@ -238,16 +238,54 @@ When generating or merging AI diagrams, Synk passes all nodes through `arrangeDA
 
 ---
 
-### 3.8 Enterprise Team Governance & Role-Based Access Control (RBAC)
+### 3.8 Enterprise Team Governance, Real-Time Invitations & Role-Based Access Control (RBAC)
 
-Synk enforces strict Role-Based Access Control for team collaboration:
+Synk features zero-config real-time multiplayer collaboration, automated email invitations, and strict Role-Based Access Control (RBAC):
 
-| Role | Permissions |
-| :--- | :--- |
-| **Owner** | Full admin access. Create, edit, delete, branch, run AI, and manage team roles. |
-| **Editor** | Create & move nodes, edit text, run auto-layout, connect architecture shapes. |
-| **Commenter** | Read-only architecture view with permission to leave sticky feedback notes. |
-| **Viewer** | Strict read-only mode. All drawing tools and modification features disabled. |
+```
++-----------------------------------------------------------------------------------+
+|                  REAL-TIME TEAM INVITATION & PRESENCE SYNC                        |
+|                                                                                   |
+|  [ Host Invites Teammate ] ---> [ Shareable Join URL / Auto Email ]               |
+|                                                |                                  |
+|                                                v                                  |
+|  [ Teammate Opens Link on Laptop ] -> [ Auto Log In & Identity Init ]             |
+|                                                |                                  |
+|                                                v                                  |
+|  [ Live Canvas Multi-Laptop Sync ] <- [ Added to Connected Members (🟢 Online) ]  |
++-----------------------------------------------------------------------------------+
+```
+
+#### How Team Member Invitations Work:
+1. **Generating Invite Links**:
+   - Open **Team & RBAC Permissions** from the top navbar.
+   - Enter teammate Name (e.g. `Jac`), Email (`jac@company.com`), and select their access role (`Owner`, `Editor`, `Commenter`, `Viewer`).
+   - Click **`✉️ Email Invite`** or **`🔗 Copy Link`**.
+   - Generates a shareable URL containing encoded identity parameters:
+     ```
+     https://synk-sigma.vercel.app/?join=true&userName=jac&userRole=editor&room=synk_cloud_8H72KD
+     ```
+
+2. **Automated Connection & Presence Sync**:
+   - When the teammate clicks or opens the link on their laptop:
+     - The platform parses URL query parameters (`join=true`, `userName`, `userRole`, `room`).
+     - Automatically logs them into the active workspace under their name and assigned role.
+     - Starts sending presence heartbeats every 3 seconds (`PRESENCE_HEARTBEAT`).
+     - Their profile, role badge, custom initials avatar, and status 🟢 **Online** immediately appear under **Connected Members** in the right sidebar across all connected laptops in real-time.
+
+3. **Live Cross-Laptop Multi-User Collaboration**:
+   - **Pub/Sub SSE & BroadcastChannel**: Synchronization is powered by Server-Sent Events (SSE) via `ntfy.sh` and `BroadcastChannel`, allowing zero-latency updates across different laptops anywhere in the world.
+   - **Live Cursor Tracking**: Teammates' mouse movements render live cursors on the canvas with their designated color tag and name label.
+   - **Bi-Directional Canvas Sync**: Adding, dragging, modifying text, connecting architecture nodes, or deleting elements syncs across all laptops in under 150ms.
+
+#### Role-Based Access Control (RBAC) Matrix:
+
+| Role | Icon | Permissions |
+| :--- | :--- | :--- |
+| **Owner** | 👑 | Full admin access. Create, edit, delete, branch, run AI, export IaC, and manage team roles. |
+| **Editor** | ✏️ | Create & move nodes, edit text labels, run auto-layout, connect architecture shapes. |
+| **Commenter** | 💬 | Read-only architecture view with permission to leave sticky feedback notes. |
+| **Viewer** | 🔒 | Strict read-only mode. All drawing tools and modification features disabled. |
 
 ---
 
