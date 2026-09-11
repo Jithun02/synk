@@ -190,7 +190,7 @@ git push -u origin main --force
 | Code Compilation | Image export only | Terraform HCL, K8s YAML, Docker Compose |
 | Incident Response | None | AI root-cause diagnosis & failover auto-provisioning |
 | Graph Layout | Manual drag and drop | Bounding-box collision-free DAG auto-layout |
-| Team Governance | basic view/edit toggle | Granular RBAC (Owner, Editor, Commenter, Viewer) |
+| Team Governance | Basic view/edit toggle | Granular RBAC (Owner, Editor, Commenter, Viewer) |
 
 ---
 
