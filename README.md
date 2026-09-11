@@ -1,6 +1,8 @@
 # synk — Enterprise Collaborative Engineering Intelligence Platform
 
-Real-Time Collaborative System Architecture, Automated STRIDE Threat Modeling, 3-Way CRDT Version Control, and Infrastructure as Code Compilation Engine.
+**Live Production Platform**: [https://synk-sigma.vercel.app/](https://synk-sigma.vercel.app/)
+
+Synk is an enterprise-grade collaborative engineering and cybersecurity architecture platform designed for software architects, DevOps engineers, and security teams. It transforms technical documentation from static visual diagrams into an active, version-controlled directed acyclic graph (DAG) powered by Conflict-Free Replicated Data Types (CRDTs), automated STRIDE threat modeling, and Infrastructure as Code (IaC) compilation.
 
 ---
 
