@@ -32,6 +32,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose, onOpenSearc
     selectedObjectIds,
     setSelectedObjectIds,
     focusObject,
+    currentUser,
     collaborationUsers,
     strokeColor,
     fillColor,
@@ -525,55 +526,47 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose, onOpenSearc
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                  Connected
+                  Connected Members ({[currentUser, ...Object.values(collaborationUsers)].length})
                 </span>
-                <button className="p-0.5 text-slate-400 hover:text-slate-700 transition">
-                  <Plus size={14} />
-                </button>
               </div>
 
               <div className="space-y-3">
-                {/* You */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs shadow-sm">
-                      J
+                {[currentUser, ...Object.values(collaborationUsers)].map((user) => {
+                  const isSelf = user.id === currentUser.id;
+                  return (
+                    <div key={user.id} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2.5">
+                        <div
+                          className="w-7 h-7 rounded-full text-white font-bold flex items-center justify-center text-xs shadow-xs"
+                          style={{ backgroundColor: user.color || '#6366f1' }}
+                        >
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-slate-800 flex items-center space-x-1.5">
+                            <span>{user.name}</span>
+                            {isSelf && (
+                              <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1 rounded">
+                                YOU
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400 capitalize">
+                            {user.role} · {user.isOnline ? 'Online' : 'Offline'}
+                          </div>
+                        </div>
+                      </div>
+                      <Circle
+                        size={8}
+                        className={
+                          user.isOnline
+                            ? 'text-emerald-500 fill-emerald-500'
+                            : 'text-slate-300 fill-slate-300'
+                        }
+                      />
                     </div>
-                    <div>
-                      <div className="font-semibold text-slate-800">You</div>
-                      <div className="text-[10px] text-slate-400">Editing</div>
-                    </div>
-                  </div>
-                  <Circle size={8} className="text-emerald-500 fill-emerald-500" />
-                </div>
-
-                {/* Alice Chen */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-full bg-amber-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">
-                      A
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-800">Alice Chen</div>
-                      <div className="text-[10px] text-slate-400">Editing · API gateway</div>
-                    </div>
-                  </div>
-                  <Circle size={8} className="text-emerald-500 fill-emerald-500" />
-                </div>
-
-                {/* Maya Patel */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs shadow-sm">
-                      M
-                    </div>
-                    <div>
-                      <div className="font-semibold text-slate-800">Maya Patel</div>
-                      <div className="text-[10px] text-slate-400">Viewing</div>
-                    </div>
-                  </div>
-                  <Circle size={8} className="text-slate-300 fill-slate-300" />
-                </div>
+                  );
+                })}
               </div>
             </div>
           </>

@@ -34,9 +34,30 @@ export const TeamPermissionsModal: React.FC<TeamPermissionsModalProps> = ({ onCl
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     addTeamMember(name.trim(), email.trim(), selectedRole);
-    notify(`✓ Sent invite to ${name} as ${selectedRole.toUpperCase()}!`);
+
+    const link = typeof window !== 'undefined'
+      ? `${window.location.origin}/?join=true&userName=${encodeURIComponent(name.trim())}&userRole=${selectedRole}&room=synk_cloud_8H72KD`
+      : '';
+
+    if (navigator.clipboard && link) {
+      navigator.clipboard.writeText(link);
+      notify(`✓ Invite link for ${name} copied to clipboard! Share it with them.`);
+    } else {
+      notify(`✓ Invited ${name} as ${selectedRole.toUpperCase()}!`);
+    }
+
     setName('');
     setEmail('');
+  };
+
+  const copyMemberLink = (memberName: string, memberRole: UserRole) => {
+    const link = typeof window !== 'undefined'
+      ? `${window.location.origin}/?join=true&userName=${encodeURIComponent(memberName)}&userRole=${memberRole}&room=synk_cloud_8H72KD`
+      : '';
+    if (navigator.clipboard && link) {
+      navigator.clipboard.writeText(link);
+      notify(`✓ Copied join link for ${memberName}!`);
+    }
   };
 
   const allMembers = [currentUser, ...Object.values(collaborationUsers)];
@@ -168,6 +189,14 @@ export const TeamPermissionsModal: React.FC<TeamPermissionsModalProps> = ({ onCl
 
                   <div className="flex items-center space-x-2">
                     {getRoleBadge(user.role)}
+                    <button
+                      type="button"
+                      onClick={() => copyMemberLink(user.name, user.role)}
+                      className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10px] rounded-lg transition"
+                      title="Copy Shareable Join Link for this teammate"
+                    >
+                      🔗 Copy Link
+                    </button>
                     <select
                       value={user.role}
                       onChange={(e) => {

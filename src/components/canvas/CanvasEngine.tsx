@@ -80,6 +80,160 @@ export const CanvasEngine: React.FC = () => {
     };
   }, []);
 
+  // Multi-laptop Real-Time Synchronization Engine
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const join = params.get('join');
+    const urlName = params.get('userName');
+    const urlRole = params.get('userRole');
+    const urlRoom = params.get('room') || 'synk_cloud_8H72KD';
+
+    if (urlName && (join === 'true' || urlName)) {
+      const colors = ['#ec4899', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#3b82f6'];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const initials = urlName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+      const userId = `user_${urlName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Math.floor(Math.random() * 1000)}`;
+
+      useCanvasStore.setState({
+        roomCode: urlRoom,
+        currentUser: {
+          id: userId,
+          name: urlName,
+          role: (urlRole as any) || 'editor',
+          color,
+          avatar: initials,
+          cursor: { x: 300 + Math.random() * 200, y: 200 + Math.random() * 200 },
+          activeTool: 'select',
+          selectedObjectIds: [],
+          isOnline: true,
+        },
+      });
+    }
+
+    const { roomCode, currentUser } = useCanvasStore.getState();
+
+    // 1. Connect to Real-time SSE / PubSub engine
+    synkWS.connect(roomCode, currentUser);
+
+    // 2. Load existing room objects from host snapshot
+    synkWS.fetchSnapshot(roomCode).then((remoteObjects) => {
+      if (remoteObjects && Object.keys(remoteObjects).length > 0) {
+        useCanvasStore.setState((s) => ({
+          objects: { ...s.objects, ...remoteObjects },
+        }));
+      }
+    });
+
+    // 3. Listen to incoming real-time events from other laptops
+    const unsubscribe = synkWS.subscribe((msg) => {
+      const state = useCanvasStore.getState();
+      const myUserId = state.currentUser.id;
+
+      if (msg.type === 'PRESENCE_HEARTBEAT') {
+        if (msg.user && msg.user.id !== myUserId) {
+          useCanvasStore.setState((s) => ({
+            collaborationUsers: {
+              ...s.collaborationUsers,
+              [msg.user.id]: {
+                ...msg.user,
+                isOnline: true,
+                lastSeen: Date.now(),
+              },
+            },
+          }));
+        }
+      } else if (msg.type === 'CURSOR_MOVE') {
+        if (msg.userId !== myUserId) {
+          useCanvasStore.setState((s) => {
+            const existing = s.collaborationUsers[msg.userId] || {
+              id: msg.userId,
+              name: msg.userName || 'Teammate',
+              color: msg.color || '#3b82f6',
+              avatar: (msg.userName || 'T').slice(0, 2).toUpperCase(),
+              role: 'editor',
+              activeTool: 'select',
+              selectedObjectIds: [],
+              isOnline: true,
+            };
+            return {
+              collaborationUsers: {
+                ...s.collaborationUsers,
+                [msg.userId]: {
+                  ...existing,
+                  cursor: msg.cursor,
+                  isOnline: true,
+                  lastSeen: Date.now(),
+                },
+              },
+            };
+          });
+        }
+      } else if (msg.type === 'OBJECT_CREATE') {
+        if (msg.userId !== myUserId && msg.object) {
+          useCanvasStore.setState((s) => ({
+            objects: { ...s.objects, [msg.object.id]: msg.object },
+          }));
+        }
+      } else if (msg.type === 'OBJECT_UPDATE') {
+        if (msg.userId !== myUserId && msg.objectId && msg.updates) {
+          useCanvasStore.setState((s) => {
+            const target = s.objects[msg.objectId];
+            if (!target) return s;
+            return {
+              objects: {
+                ...s.objects,
+                [msg.objectId]: { ...target, ...msg.updates, updatedAt: Date.now() },
+              },
+            };
+          });
+        }
+      } else if (msg.type === 'OBJECT_DELETE') {
+        if (msg.userId !== myUserId && msg.objectIds) {
+          useCanvasStore.setState((s) => {
+            const nextObj = { ...s.objects };
+            msg.objectIds.forEach((id) => delete nextObj[id]);
+            return { objects: nextObj };
+          });
+        }
+      } else if (msg.type === 'FULL_SNAPSHOT') {
+        if (msg.objects) {
+          useCanvasStore.setState({ objects: msg.objects });
+        }
+      }
+    });
+
+    // 4. Periodically check offline users (stale heartbeats > 12s)
+    const offlineInterval = setInterval(() => {
+      const now = Date.now();
+      useCanvasStore.setState((s) => {
+        let changed = false;
+        const updatedUsers = { ...s.collaborationUsers };
+        Object.keys(updatedUsers).forEach((uid) => {
+          const u = updatedUsers[uid] as any;
+          if (u.lastSeen && now - u.lastSeen > 12000 && u.isOnline) {
+            updatedUsers[uid] = { ...u, isOnline: false };
+            changed = true;
+          }
+        });
+        return changed ? { collaborationUsers: updatedUsers } : s;
+      });
+    }, 4000);
+
+    // 5. Periodically publish workspace snapshot to cloud for new joiners
+    const snapshotInterval = setInterval(() => {
+      const { objects, roomCode } = useCanvasStore.getState();
+      synkWS.publishSnapshot(objects, roomCode);
+    }, 10000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(offlineInterval);
+      clearInterval(snapshotInterval);
+    };
+  }, []);
+
   const screenToCanvas = useCallback(
     (screenX: number, screenY: number): Point => {
       if (!containerRef.current) return { x: screenX, y: screenY };
@@ -515,14 +669,23 @@ export const CanvasEngine: React.FC = () => {
       { x: 500, y: 270, name: '3', isNumberBadge: true, color: '#ef4444' },
     ];
 
-    const cursorList = simulatingMultiUser
-      ? Object.values(collaborationUsers).map((u) => ({
+    const activeRemoteUsers = Object.values(collaborationUsers).filter(
+      (u) => u.id !== currentUser.id && u.isOnline && u.cursor
+    );
+
+    const cursorList = activeRemoteUsers.length > 0
+      ? activeRemoteUsers.map((u) => ({
           x: u.cursor.x,
           y: u.cursor.y,
           name: u.name.split(' ')[0],
           color: u.color || '#7c3aed',
         }))
-      : demoCursors;
+      : (simulatingMultiUser ? Object.values(collaborationUsers).map((u) => ({
+          x: u.cursor.x,
+          y: u.cursor.y,
+          name: u.name.split(' ')[0],
+          color: u.color || '#7c3aed',
+        })) : demoCursors);
 
     for (const c of cursorList) {
       ctx.save();
